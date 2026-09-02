@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { MarkerClusterer } from "@googlemaps/markerclusterer";
 import CameraCard from "./CameraCard";
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -46,9 +47,20 @@ const CLASS_COLORS = {
 export default function Map({ onSelect, onStream }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
+  const clustererRef = useRef(null);
 
   useEffect(() => {
     loadGoogleMaps().then(initMap).catch(console.error);
+
+    return () => {
+      // App unmounts Map on every view switch, and StrictMode runs this effect
+      // twice in dev. Without releasing the markers each pass leaves thousands
+      // of them referenced.
+      if (clustererRef.current) {
+        clustererRef.current.clearMarkers();
+        clustererRef.current = null;
+      }
+    };
   }, []);
 
   function loadGoogleMaps() {
@@ -149,6 +161,11 @@ export default function Map({ onSelect, onStream }) {
       .then((detections) => {
         if (!Array.isArray(detections)) return;
 
+        // Detections number in the thousands. Attaching a Marker per record to
+        // the map directly spawns one canvas overlay each and pins the renderer,
+        // so build them detached and let MarkerClusterer decide what to draw.
+        const detectionMarkers = [];
+
         detections.forEach((d) => {
           const lat = Number(d.lat);
           const lng = Number(d.lng);
@@ -158,7 +175,6 @@ export default function Map({ onSelect, onStream }) {
 
           const marker = new google.maps.Marker({
             position,
-            map,
             title: d.label,
             icon: {
               path: google.maps.SymbolPath.CIRCLE,
@@ -170,6 +186,8 @@ export default function Map({ onSelect, onStream }) {
               strokeWeight: 2
             }
           });
+
+          detectionMarkers.push(marker);
 
           bounds.extend(position);
           hasValid = true;
@@ -185,6 +203,11 @@ export default function Map({ onSelect, onStream }) {
               lat_long: d.lat_long || `${lat},${lng}`
             });
           });
+        });
+
+        clustererRef.current = new MarkerClusterer({
+          map,
+          markers: detectionMarkers
         });
 
         if (hasValid) map.fitBounds(bounds);
