@@ -435,7 +435,7 @@ export default function Canvas3D({ artifact, onBack, onViewData, onStream }) {
         />
       </div>
 
-      <div className="relative flex min-h-0 flex-col overflow-auto rounded-xl border border-cyan-500">
+      <div className="relative flex min-h-0 flex-col overflow-auto rounded-xl border border-cyan-500 bg-[#020a13]/90">
         <div className="flex flex-col gap-4 p-4 pb-20">
           {details && <InfoCard {...details} />}
           {isDetection && <DetectionTable />}
