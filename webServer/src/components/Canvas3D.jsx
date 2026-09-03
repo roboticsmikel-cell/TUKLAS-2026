@@ -356,7 +356,7 @@ export default function Canvas3D({ artifact, onBack, onViewData, onStream }) {
         ← Back to Map
       </button>
 
-      <div className="relative min-h-0 overflow-hidden rounded-xl border border-cyan-500">
+      <div className="relative min-h-0 overflow-hidden rounded-xl border border-cyan-500 bg-[#020a13]/90">
         <button
           onClick={onStream}
           className="absolute bottom-4 right-4 z-20 rounded border border-cyan-300 bg-black/70 px-3 py-1 text-cyan-300"
@@ -367,7 +367,7 @@ export default function Canvas3D({ artifact, onBack, onViewData, onStream }) {
         <CameraCard />
       </div>
 
-      <div className="relative min-h-0 overflow-hidden rounded-xl border border-cyan-500">
+      <div className="relative min-h-0 overflow-hidden rounded-xl border border-cyan-500 bg-[#020a13]/90">
         {isArtifact && displayModelUrl ? (
           <button
             onClick={() => setViewMode(viewMode === "3d" ? "image" : "3d")}
