@@ -36,6 +36,21 @@ const DARK_FUTURE_MAP_STYLE = [
   }
 ];
 
+// A few detection rows carry IP-geolocated coordinates from machines outside
+// the survey area (six of them sit in Houston). Framing on those drags
+// fitBounds out to a whole-world view, so they are still plotted but left out
+// of the initial framing.
+const SURVEY_BOUNDS = { minLat: 4, maxLat: 21, minLng: 116, maxLng: 127 };
+
+function isWithinSurveyArea(lat, lng) {
+  return (
+    lat >= SURVEY_BOUNDS.minLat &&
+    lat <= SURVEY_BOUNDS.maxLat &&
+    lng >= SURVEY_BOUNDS.minLng &&
+    lng <= SURVEY_BOUNDS.maxLng
+  );
+}
+
 const CLASS_COLORS = {
   burial: "#00E5FF",
   pottery: "#FFB300",
@@ -106,7 +121,13 @@ export default function Map({ onSelect, onStream }) {
     const bounds = new google.maps.LatLngBounds();
     let hasValid = false;
 
-    fetch(`${API_URL}/api/artifacts`)
+    function includeInBounds(position) {
+      if (!isWithinSurveyArea(position.lat, position.lng)) return;
+      bounds.extend(position);
+      hasValid = true;
+    }
+
+    const artifactsLoaded = fetch(`${API_URL}/api/artifacts`)
       .then((res) => res.json())
       .then((artifacts) => {
         if (!Array.isArray(artifacts)) return;
@@ -134,8 +155,7 @@ export default function Map({ onSelect, onStream }) {
             }
           });
 
-          bounds.extend(position);
-          hasValid = true;
+          includeInBounds(position);
 
           marker.addListener("click", () => {
             onSelect({
@@ -149,14 +169,12 @@ export default function Map({ onSelect, onStream }) {
             });
           });
         });
-
-        if (hasValid) map.fitBounds(bounds);
       })
       .catch((err) => {
         console.error("Failed to load artifacts:", err);
       });
 
-    fetch(`${API_URL}/api/detections`)
+    const detectionsLoaded = fetch(`${API_URL}/api/detections`)
       .then((res) => res.json())
       .then((detections) => {
         if (!Array.isArray(detections)) return;
@@ -189,8 +207,7 @@ export default function Map({ onSelect, onStream }) {
 
           detectionMarkers.push(marker);
 
-          bounds.extend(position);
-          hasValid = true;
+          includeInBounds(position);
 
           marker.addListener("click", () => {
             onSelect({
@@ -209,12 +226,16 @@ export default function Map({ onSelect, onStream }) {
           map,
           markers: detectionMarkers
         });
-
-        if (hasValid) map.fitBounds(bounds);
       })
       .catch((err) => {
         console.error("Failed to load detections:", err);
       });
+
+    // Both layers feed the framing, so fit once after they have all landed
+    // rather than letting whichever resolves last re-frame the map.
+    Promise.allSettled([artifactsLoaded, detectionsLoaded]).then(() => {
+      if (hasValid) map.fitBounds(bounds);
+    });
   }
 
   return (
